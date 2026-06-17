@@ -1,288 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Queue Dashboard - MTN Queue System</title>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- ChartJS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Firebase SDK (Compat Version for browser usage) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <!-- Custom Style -->
-    <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
-    <!-- App Container -->
-    <div class="app-container">
-        
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo-area">
-                <div class="logo-icon">MTN</div>
-                <div class="logo-text">
-                    <h1>Smart Queue</h1>
-                    <span>Single-Location Queue Management</span>
-                </div>
-            </div>
-            <div class="system-status-indicator">
-                <span class="status-dot online" id="statusDot"></span>
-                <span id="statusText">ESP32: Connected</span>
-            </div>
-            <div class="nav-controls">
-                <button id="viewToggleBtn" class="btn btn-secondary">
-                    <i class="fa-solid fa-lock"></i> Admin Portal
-                </button>
-                <button id="loginRegisterBtn" class="btn btn-primary">
-                    <i class="fa-solid fa-user"></i> Login / Register
-                </button>
-                <div id="userProfileBadge" class="user-profile-badge hidden">
-                    <span class="avatar"><i class="fa-solid fa-user-check"></i></span>
-                    <span class="name" id="profileName">Guest</span>
-                    <button id="logoutBtn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
-                </div>
-            </div>
-        </header>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome to Firebase Hosting</title>
 
-        <!-- Main Workspace -->
-        <main class="app-main">
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/12.15.0/firebase-app-compat.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/12.15.0/firebase-auth-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-database-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-firestore-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-functions-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-messaging-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-storage-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-analytics-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-remote-config-compat.js"></script>
+    <script defer src="/__/firebase/12.15.0/firebase-performance-compat.js"></script>
+    <!-- 
+      initialize the SDK after all desired features are loaded, set useEmulator to false
+      to avoid connecting the SDK to running emulators.
+    -->
+    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-            <!-- Real-Time Metrics Summary Cards -->
-            <section class="metrics-grid">
-                <div class="metric-card glass">
-                    <div class="metric-icon green-bg"><i class="fa-solid fa-users"></i></div>
-                    <div class="metric-info">
-                        <h3>Total Queue Size</h3>
-                        <p class="metric-value" id="totalQueueSize">0</p>
-                    </div>
-                </div>
-                <div class="metric-card glass">
-                    <div class="metric-icon yellow-bg"><i class="fa-solid fa-circle-play"></i></div>
-                    <div class="metric-info">
-                        <h3>Currently Serving</h3>
-                        <p class="metric-value highlighting" id="currentlyServing">---</p>
-                    </div>
-                </div>
-                <div class="metric-card glass">
-                    <div class="metric-icon blue-bg"><i class="fa-solid fa-hourglass-half"></i></div>
-                    <div class="metric-info">
-                        <h3>Expected Wait Time</h3>
-                        <p class="metric-value" id="expectedWaitTime">0 min</p>
-                    </div>
-                </div>
-                <div class="metric-card glass">
-                    <div class="metric-icon purple-bg"><i class="fa-solid fa-stopwatch"></i></div>
-                    <div class="metric-info">
-                        <h3>Avg Service Duration</h3>
-                        <p class="metric-value" id="avgServiceTime">1.5 min</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- User Board (Default View) -->
-            <div id="userBoard" class="board-view active">
-                <div class="content-layout">
-                    <!-- Left: Interactive Ticket Options -->
-                    <div class="content-left">
-                        <!-- Join Queue / Reservation Card -->
-                        <div class="card glass interactive-card">
-                            <h2 class="card-title"><i class="fa-solid fa-ticket"></i> Get Your Queue Ticket</h2>
-                            <p class="card-desc">Register or join directly to secure your slot. Choose standard joining or book emergency/reservation slot.</p>
-                            
-                            <div class="join-options">
-                                <div class="form-group">
-                                    <label for="clientName">Full Name</label>
-                                    <input type="text" id="clientName" placeholder="Enter your name" class="form-input">
-                                </div>
-                                <div class="form-group">
-                                    <label for="serviceSelect">Service Option</label>
-                                    <select id="serviceSelect" class="form-input">
-                                        <option value="Joining Queue">Joining Queue (Standard Registration)</option>
-                                        <option value="Reservation">Reservation Slot (Scheduled Appt)</option>
-                                        <option value="Emergency">Emergency / Priority Slot</option>
-                                    </select>
-                                </div>
-                                <button id="joinQueueBtn" class="btn btn-accent btn-full">
-                                    <i class="fa-solid fa-plus-circle"></i> Issue Ticket
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- User Active Ticket Info -->
-                        <div id="activeTicketCard" class="card glass ticket-card hidden">
-                            <div class="ticket-header">
-                                <h3>YOUR ACTIVE TICKET</h3>
-                                <span class="ticket-badge" id="myTicketType">Standard</span>
-                            </div>
-                            <div class="ticket-body">
-                                <span class="ticket-number" id="myTicketNumber">000</span>
-                                <div class="ticket-stats">
-                                    <div class="t-stat">
-                                        <span class="label">People Ahead</span>
-                                        <span class="val" id="myPeopleAhead">0</span>
-                                    </div>
-                                    <div class="t-stat">
-                                        <span class="label">Estimated Wait</span>
-                                        <span class="val" id="myWaitTime">0 mins</span>
-                                    </div>
-                                </div>
-                                <div class="ticket-tracking">
-                                    <p id="ticketStatusMsg">Waiting in queue...</p>
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar" id="ticketProgress"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ticket-footer">
-                                <button id="cancelTicketBtn" class="btn btn-danger btn-sm">
-                                    <i class="fa-solid fa-xmark"></i> Cancel Ticket
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Live Queue Tracking & Times -->
-                    <div class="content-right">
-                        <div class="card glass">
-                            <h2 class="card-title"><i class="fa-solid fa-list-ol"></i> Live Queue Progression</h2>
-                            <div class="table-container">
-                                <table class="queue-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Token</th>
-                                            <th>Name</th>
-                                            <th>Service Type</th>
-                                            <th>Joined At</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="queueListBody">
-                                        <tr>
-                                            <td colspan="5" class="empty-state">No customers in queue</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Admin Board (Hidden by default) -->
-            <div id="adminBoard" class="board-view">
-                <div class="content-layout">
-                    <!-- Left: Control Panel -->
-                    <div class="content-left">
-                        <div class="card glass admin-controls-card">
-                            <h2 class="card-title"><i class="fa-solid fa-sliders"></i> Teller Control Panel</h2>
-                            <p class="card-desc">Simulate hardware triggers or override the physical queue state directly.</p>
-                            
-                            <div class="admin-buttons">
-                                <button id="adminNextBtn" class="btn btn-accent btn-full btn-lg">
-                                    <i class="fa-solid fa-forward-step"></i> Serve Next Person
-                                </button>
-                                <div class="button-row-grid">
-                                    <button id="adminOpenGateBtn" class="btn btn-secondary">
-                                        <i class="fa-solid fa-door-open"></i> Toggle Gate
-                                    </button>
-                                    <button id="adminBuzzerBtn" class="btn btn-secondary">
-                                        <i class="fa-solid fa-volume-high"></i> Trigger Buzzer
-                                    </button>
-                                </div>
-                                <div class="button-row-grid">
-                                    <button id="adminSetIdleBtn" class="btn btn-warning">
-                                        <i class="fa-solid fa-power-off"></i> Set Idle State
-                                    </button>
-                                    <button id="adminResetBtn" class="btn btn-danger">
-                                        <i class="fa-solid fa-trash-can"></i> Reset All Data
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card glass settings-card">
-                            <h2 class="card-title"><i class="fa-solid fa-gears"></i> Timing Optimization</h2>
-                            <div class="form-group">
-                                <label for="manualAvgTime">Average Service Time (seconds)</label>
-                                <div class="input-action-group">
-                                    <input type="number" id="manualAvgTime" class="form-input" value="90">
-                                    <button id="saveSettingsBtn" class="btn btn-primary">Update</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Advanced Analytics -->
-                    <div class="content-right">
-                        <div class="card glass charts-card">
-                            <h2 class="card-title"><i class="fa-solid fa-chart-line"></i> Analytics & Time Performance</h2>
-                            <div class="charts-layout">
-                                <div class="chart-container">
-                                    <canvas id="queueSizeChart"></canvas>
-                                </div>
-                                <div class="chart-container">
-                                    <canvas id="servicePerformanceChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </main>
+    <style media="screen">
+      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+      #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px; border-radius: 3px; }
+      #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
+      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
+      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
+      #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
+      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
+      #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
+      @media (max-width: 600px) {
+        body, #message { margin-top: 0; background: white; box-shadow: none; }
+        body { border-top: 16px solid #ffa100; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="message">
+      <h2>Welcome</h2>
+      <h1>Firebase Hosting Setup Complete</h1>
+      <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
+      <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
     </div>
+    <p id="load">Firebase SDK Loading&hellip;</p>
 
-    <!-- Login / Registration Modal -->
-    <div id="authModal" class="modal-overlay">
-        <div class="modal-content glass">
-            <button class="modal-close" id="closeAuthModal"><i class="fa-solid fa-xmark"></i></button>
-            <div class="modal-tabs">
-                <button class="tab-btn active" id="loginTabBtn">Login</button>
-                <button class="tab-btn" id="registerTabBtn">Register</button>
-            </div>
-            
-            <!-- Login Form -->
-            <form id="loginForm" class="modal-form active">
-                <div class="form-group">
-                    <label for="loginEmail">Email Address</label>
-                    <input type="email" id="loginEmail" placeholder="your@email.com" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" placeholder="••••••••" class="form-input" required>
-                </div>
-                <button type="submit" class="btn btn-accent btn-full">Login</button>
-            </form>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const loadEl = document.querySelector('#load');
+        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+        // // The Firebase SDK is initialized and available here!
+        //
+        // firebase.auth().onAuthStateChanged(user => { });
+        // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
+        // firebase.firestore().doc('/foo/bar').get().then(() => { });
+        // firebase.functions().httpsCallable('yourFunction')().then(() => { });
+        // firebase.messaging().requestPermission().then(() => { });
+        // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+        // firebase.analytics(); // call to activate
+        // firebase.analytics().logEvent('tutorial_completed');
+        // firebase.performance(); // call to activate
+        //
+        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
 
-            <!-- Registration Form -->
-            <form id="registerForm" class="modal-form">
-                <div class="form-group">
-                    <label for="regName">Full Name</label>
-                    <input type="text" id="regName" placeholder="John Doe" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="regEmail">Email Address</label>
-                    <input type="email" id="regEmail" placeholder="your@email.com" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="regPassword">Password</label>
-                    <input type="password" id="regPassword" placeholder="Minimum 6 characters" class="form-input" required>
-                </div>
-                <button type="submit" class="btn btn-accent btn-full">Create Account</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div id="toastContainer" class="toast-container"></div>
-
-    <!-- Application Javascript Files -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/app.js"></script>
-</body>
+        try {
+          let app = firebase.app();
+          let features = [
+            'auth', 
+            'database', 
+            'firestore',
+            'functions',
+            'messaging', 
+            'storage', 
+            'analytics', 
+            'remoteConfig',
+            'performance',
+          ].filter(feature => typeof app[feature] === 'function');
+          loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}`;
+        } catch (e) {
+          console.error(e);
+          loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
+        }
+      });
+    </script>
+  </body>
 </html>
