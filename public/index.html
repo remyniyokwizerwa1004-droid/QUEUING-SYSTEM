@@ -1,288 +1,304 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Queue Dashboard - MTN Queue System</title>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- ChartJS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Firebase SDK (Compat Version for browser usage) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <!-- Custom Style -->
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MTN Smart Queue — Live Dashboard</title>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Charts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <!-- App Container -->
-    <div class="app-container">
-        
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo-area">
-                <img src="assets/logo.jpg" alt="Smart Queue Logo" class="logo-img">
-                <div class="logo-text">
-                    <h1>Smart Queue</h1>
-                    <span>Single-Location Queue Management</span>
-                </div>
-            </div>
-            <div class="system-status-indicator">
-                <span class="status-dot online" id="statusDot"></span>
-                <span id="statusText">ESP32: Connected</span>
-            </div>
-            <div class="nav-controls">
-                <button id="viewToggleBtn" class="btn btn-secondary">
-                    <i class="fa-solid fa-lock"></i> Admin Portal
-                </button>
-                <button id="loginRegisterBtn" class="btn btn-primary">
-                    <i class="fa-solid fa-user"></i> Login / Register
-                </button>
-                <div id="userProfileBadge" class="user-profile-badge hidden">
-                    <span class="avatar"><i class="fa-solid fa-user-check"></i></span>
-                    <span class="name" id="profileName">Guest</span>
-                    <button id="logoutBtn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
-                </div>
-            </div>
-        </header>
+  <div class="app-container">
 
-        <!-- Main Workspace -->
-        <main class="app-main">
-
-            <!-- Real-Time Metrics Summary Cards -->
-            <section class="metrics-grid">
-                <div class="metric-card glass">
-                    <div class="metric-icon green-bg"><i class="fa-solid fa-users"></i></div>
-                    <div class="metric-info">
-                        <h3>Total Queue Size</h3>
-                        <p class="metric-value" id="totalQueueSize">0</p>
-                    </div>
-                </div>
-                <div class="metric-card glass">
-                    <div class="metric-icon yellow-bg"><i class="fa-solid fa-circle-play"></i></div>
-                    <div class="metric-info">
-                        <h3>Currently Serving</h3>
-                        <p class="metric-value highlighting" id="currentlyServing">---</p>
-                    </div>
-                </div>
-                <div class="metric-card glass">
-                    <div class="metric-icon blue-bg"><i class="fa-solid fa-hourglass-half"></i></div>
-                    <div class="metric-info">
-                        <h3>Expected Wait Time</h3>
-                        <p class="metric-value" id="expectedWaitTime">0 min</p>
-                    </div>
-                </div>
-                <div class="metric-card glass">
-                    <div class="metric-icon purple-bg"><i class="fa-solid fa-stopwatch"></i></div>
-                    <div class="metric-info">
-                        <h3>Avg Service Duration</h3>
-                        <p class="metric-value" id="avgServiceTime">1.5 min</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- User Board (Default View) -->
-            <div id="userBoard" class="board-view active">
-                <div class="content-layout">
-                    <!-- Left: Interactive Ticket Options -->
-                    <div class="content-left">
-                        <!-- Join Queue / Reservation Card -->
-                        <div class="card glass interactive-card">
-                            <h2 class="card-title"><i class="fa-solid fa-ticket"></i> Get Your Queue Ticket</h2>
-                            <p class="card-desc">Register or join directly to secure your slot. Choose standard joining or book emergency/reservation slot.</p>
-                            
-                            <div class="join-options">
-                                <div class="form-group">
-                                    <label for="clientName">Full Name</label>
-                                    <input type="text" id="clientName" placeholder="Enter your name" class="form-input">
-                                </div>
-                                <div class="form-group">
-                                    <label for="serviceSelect">Service Option</label>
-                                    <select id="serviceSelect" class="form-input">
-                                        <option value="Joining Queue">Joining Queue (Standard Registration)</option>
-                                        <option value="Reservation">Reservation Slot (Scheduled Appt)</option>
-                                        <option value="Emergency">Emergency / Priority Slot</option>
-                                    </select>
-                                </div>
-                                <button id="joinQueueBtn" class="btn btn-accent btn-full">
-                                    <i class="fa-solid fa-plus-circle"></i> Issue Ticket
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- User Active Ticket Info -->
-                        <div id="activeTicketCard" class="card glass ticket-card hidden">
-                            <div class="ticket-header">
-                                <h3>YOUR ACTIVE TICKET</h3>
-                                <span class="ticket-badge" id="myTicketType">Standard</span>
-                            </div>
-                            <div class="ticket-body">
-                                <span class="ticket-number" id="myTicketNumber">000</span>
-                                <div class="ticket-stats">
-                                    <div class="t-stat">
-                                        <span class="label">People Ahead</span>
-                                        <span class="val" id="myPeopleAhead">0</span>
-                                    </div>
-                                    <div class="t-stat">
-                                        <span class="label">Estimated Wait</span>
-                                        <span class="val" id="myWaitTime">0 mins</span>
-                                    </div>
-                                </div>
-                                <div class="ticket-tracking">
-                                    <p id="ticketStatusMsg">Waiting in queue...</p>
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar" id="ticketProgress"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ticket-footer">
-                                <button id="cancelTicketBtn" class="btn btn-danger btn-sm">
-                                    <i class="fa-solid fa-xmark"></i> Cancel Ticket
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Live Queue Tracking & Times -->
-                    <div class="content-right">
-                        <div class="card glass">
-                            <h2 class="card-title"><i class="fa-solid fa-list-ol"></i> Live Queue Progression</h2>
-                            <div class="table-container">
-                                <table class="queue-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Token</th>
-                                            <th>Name</th>
-                                            <th>Service Type</th>
-                                            <th>Joined At</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="queueListBody">
-                                        <tr>
-                                            <td colspan="5" class="empty-state">No customers in queue</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Admin Board (Hidden by default) -->
-            <div id="adminBoard" class="board-view">
-                <div class="content-layout">
-                    <!-- Left: Control Panel -->
-                    <div class="content-left">
-                        <div class="card glass admin-controls-card">
-                            <h2 class="card-title"><i class="fa-solid fa-sliders"></i> Teller Control Panel</h2>
-                            <p class="card-desc">Simulate hardware triggers or override the physical queue state directly.</p>
-                            
-                            <div class="admin-buttons">
-                                <button id="adminNextBtn" class="btn btn-accent btn-full btn-lg">
-                                    <i class="fa-solid fa-forward-step"></i> Serve Next Person
-                                </button>
-                                <div class="button-row-grid">
-                                    <button id="adminOpenGateBtn" class="btn btn-secondary">
-                                        <i class="fa-solid fa-door-open"></i> Toggle Gate
-                                    </button>
-                                    <button id="adminBuzzerBtn" class="btn btn-secondary">
-                                        <i class="fa-solid fa-volume-high"></i> Trigger Buzzer
-                                    </button>
-                                </div>
-                                <div class="button-row-grid">
-                                    <button id="adminSetIdleBtn" class="btn btn-warning">
-                                        <i class="fa-solid fa-power-off"></i> Set Idle State
-                                    </button>
-                                    <button id="adminResetBtn" class="btn btn-danger">
-                                        <i class="fa-solid fa-trash-can"></i> Reset All Data
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card glass settings-card">
-                            <h2 class="card-title"><i class="fa-solid fa-gears"></i> Timing Optimization</h2>
-                            <div class="form-group">
-                                <label for="manualAvgTime">Average Service Time (seconds)</label>
-                                <div class="input-action-group">
-                                    <input type="number" id="manualAvgTime" class="form-input" value="90">
-                                    <button id="saveSettingsBtn" class="btn btn-primary">Update</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Advanced Analytics -->
-                    <div class="content-right">
-                        <div class="card glass charts-card">
-                            <h2 class="card-title"><i class="fa-solid fa-chart-line"></i> Analytics & Time Performance</h2>
-                            <div class="charts-layout">
-                                <div class="chart-container">
-                                    <canvas id="queueSizeChart"></canvas>
-                                </div>
-                                <div class="chart-container">
-                                    <canvas id="servicePerformanceChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <!-- Login / Registration Modal -->
-    <div id="authModal" class="modal-overlay">
-        <div class="modal-content glass">
-            <button class="modal-close" id="closeAuthModal"><i class="fa-solid fa-xmark"></i></button>
-            <div class="modal-tabs">
-                <button class="tab-btn active" id="loginTabBtn">Login</button>
-                <button class="tab-btn" id="registerTabBtn">Register</button>
-            </div>
-            
-            <!-- Login Form -->
-            <form id="loginForm" class="modal-form active">
-                <div class="form-group">
-                    <label for="loginEmail">Email Address</label>
-                    <input type="email" id="loginEmail" placeholder="your@email.com" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" placeholder="••••••••" class="form-input" required>
-                </div>
-                <button type="submit" class="btn btn-accent btn-full">Login</button>
-            </form>
-
-            <!-- Registration Form -->
-            <form id="registerForm" class="modal-form">
-                <div class="form-group">
-                    <label for="regName">Full Name</label>
-                    <input type="text" id="regName" placeholder="John Doe" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="regEmail">Email Address</label>
-                    <input type="email" id="regEmail" placeholder="your@email.com" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label for="regPassword">Password</label>
-                    <input type="password" id="regPassword" placeholder="Minimum 6 characters" class="form-input" required>
-                </div>
-                <button type="submit" class="btn btn-accent btn-full">Create Account</button>
-            </form>
+    <!-- ================= HEADER ================= -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">MTN</div>
+        <div class="logo-text">
+          <h1>Smart Queue System</h1>
+          <span>IoT Token &amp; Gate Controller — Live Dashboard</span>
         </div>
+      </div>
+
+      <div class="nav-controls">
+        <div class="system-status-indicator">
+          <span id="statusDot" class="status-dot offline"></span>
+          <span id="statusText">ESP32: Connecting…</span>
+          <span id="lastUpdatedText" style="color: var(--color-text-muted); font-size: 12px;">— never updated</span>
+        </div>
+
+        <button id="viewToggleBtn" class="btn btn-primary">
+          <i class="fa-solid fa-lock"></i> Admin Portal
+        </button>
+
+        <!-- Login / Register entry point. Stays VISIBLE; behaviour is gated on FEATURES.authEnabled. -->
+        <button id="loginRegisterBtn" class="btn btn-accent">
+          <i class="fa-solid fa-right-to-bracket"></i> Login / Register
+        </button>
+
+        <div id="userProfileBadge" class="user-profile-badge hidden">
+          <i class="fa-solid fa-user-circle avatar"></i>
+          <span id="profileName" class="name">User</span>
+          <button id="logoutBtn" title="Log out"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= METRICS ================= -->
+    <section class="metrics-grid">
+      <div class="metric-card glass">
+        <div class="metric-icon yellow-bg"><i class="fa-solid fa-bullhorn"></i></div>
+        <div class="metric-info">
+          <h3>Now Serving</h3>
+          <div id="currentlyServing" class="metric-value highlighting">---</div>
+        </div>
+      </div>
+      <div class="metric-card glass">
+        <div class="metric-icon blue-bg"><i class="fa-solid fa-forward-step"></i></div>
+        <div class="metric-info">
+          <h3>Next Token</h3>
+          <div id="nextServing" class="metric-value">---</div>
+        </div>
+      </div>
+      <div class="metric-card glass">
+        <div class="metric-icon green-bg"><i class="fa-solid fa-users"></i></div>
+        <div class="metric-info">
+          <h3>People Waiting</h3>
+          <div id="totalQueueSize" class="metric-value">0</div>
+        </div>
+      </div>
+      <div class="metric-card glass">
+        <div class="metric-icon purple-bg"><i class="fa-solid fa-circle-nodes"></i></div>
+        <div class="metric-info">
+          <h3>System State</h3>
+          <div id="systemState" class="metric-value">IDLE</div>
+        </div>
+      </div>
+      <div class="metric-card glass">
+        <div class="metric-icon blue-bg"><i class="fa-solid fa-door-open"></i></div>
+        <div class="metric-info">
+          <h3>Gate Status</h3>
+          <div id="gateStatus" class="metric-value">CLOSED</div>
+        </div>
+      </div>
+      <div class="metric-card glass">
+        <div class="metric-icon yellow-bg"><i class="fa-solid fa-hourglass-half"></i></div>
+        <div class="metric-info">
+          <h3>Expected Wait</h3>
+          <div id="expectedWaitTime" class="metric-value">0s</div>
+        </div>
+      </div>
+      <div class="metric-card glass">
+        <div class="metric-icon green-bg"><i class="fa-solid fa-stopwatch"></i></div>
+        <div class="metric-info">
+          <h3>Avg Service Time</h3>
+          <div id="avgServiceTime" class="metric-value">0s</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= USER BOARD ================= -->
+    <div id="userBoard" class="board-view active">
+      <div class="content-layout">
+
+        <!-- Left column -->
+        <div class="content-left">
+          <div class="card glass">
+            <div class="card-title"><i class="fa-solid fa-ticket"></i> Join the Queue</div>
+            <p class="card-desc">Get a remote token without standing in line. Your number is issued on the device instantly.</p>
+
+            <div class="form-group">
+              <label for="clientName">Your Name</label>
+              <input type="text" id="clientName" class="form-input" placeholder="e.g. Jean Pierre">
+            </div>
+            <div class="form-group">
+              <label for="serviceSelect">Service Type</label>
+              <select id="serviceSelect" class="form-input">
+                <option value="General Enquiry">General Enquiry</option>
+                <option value="Account Services">Account Services</option>
+                <option value="Payments">Payments</option>
+                <option value="Technical Support">Technical Support</option>
+              </select>
+            </div>
+            <button id="joinQueueBtn" class="btn btn-accent btn-full btn-lg">
+              <i class="fa-solid fa-plus"></i> Join Queue
+            </button>
+          </div>
+
+          <!-- Active ticket (shown once a ticket is held) -->
+          <div id="activeTicketCard" class="card ticket-card glass hidden">
+            <div class="ticket-header">
+              <h3>YOUR ACTIVE TICKET</h3>
+              <span id="myTicketType" class="ticket-badge">Standard</span>
+            </div>
+            <span id="myTicketNumber" class="ticket-number">---</span>
+            <div class="ticket-stats">
+              <div class="t-stat">
+                <span class="label">People Ahead</span>
+                <span id="myPeopleAhead" class="val">0</span>
+              </div>
+              <div class="t-stat">
+                <span class="label">Est. Wait</span>
+                <span id="myWaitTime" class="val">0 min</span>
+              </div>
+            </div>
+            <div class="ticket-tracking">
+              <p id="ticketStatusMsg">Waiting in queue…</p>
+              <div class="progress-bar-container">
+                <div id="ticketProgress" class="progress-bar"></div>
+              </div>
+            </div>
+            <div class="ticket-footer">
+              <button id="cancelTicketBtn" class="btn btn-secondary btn-sm">
+                <i class="fa-solid fa-xmark"></i> Cancel Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column: live queue -->
+        <div class="content-right">
+          <div class="card glass">
+            <div class="card-title"><i class="fa-solid fa-list-ol"></i> Live Queue</div>
+            <p class="card-desc">Updates in real time directly from the device — no page refresh needed.</p>
+            <div class="table-container">
+              <table class="queue-table">
+                <thead>
+                  <tr>
+                    <th>Token</th>
+                    <th>Name</th>
+                    <th>Service</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="queueListBody">
+                  <tr><td colspan="5" class="empty-state">Connecting to live queue…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div id="toastContainer" class="toast-container"></div>
+    <!-- ================= ADMIN BOARD ================= -->
+    <div id="adminBoard" class="board-view">
+      <div class="content-layout">
+        <div class="content-left">
+          <div class="card glass">
+            <div class="card-title"><i class="fa-solid fa-sliders"></i> Device Controls</div>
+            <p class="card-desc">Drive the physical machine remotely. These work without login.</p>
+            <div class="admin-buttons">
+              <button id="adminNextBtn" class="btn btn-accent btn-full">
+                <i class="fa-solid fa-forward"></i> Call Next Token
+              </button>
+              <div class="button-row-grid">
+                <button id="adminOpenGateBtn" class="btn btn-primary"><i class="fa-solid fa-door-open"></i> Toggle Gate</button>
+                <button id="adminBuzzerBtn" class="btn btn-primary"><i class="fa-solid fa-bell"></i> Beep Device</button>
+              </div>
+              <div class="button-row-grid">
+                <button id="adminSetIdleBtn" class="btn btn-warning"><i class="fa-solid fa-pause"></i> Set Idle</button>
+                <button id="adminResetBtn" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Reset System</button>
+              </div>
+            </div>
+          </div>
 
-    <!-- Application Javascript Files -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/app.js"></script>
+          <div class="card glass">
+            <div class="card-title"><i class="fa-solid fa-gear"></i> Settings</div>
+            <div class="form-group">
+              <label for="manualAvgTime">Avg Service Time (seconds)</label>
+              <div class="input-action-group">
+                <input type="number" id="manualAvgTime" class="form-input" value="90" min="1">
+                <button id="saveSettingsBtn" class="btn btn-accent"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-right">
+          <div class="card glass">
+            <div class="card-title"><i class="fa-solid fa-chart-line"></i> Live Queue Size</div>
+            <div class="chart-container"><canvas id="queueSizeChart"></canvas></div>
+          </div>
+          <div class="card glass">
+            <div class="card-title"><i class="fa-solid fa-chart-column"></i> Service Performance</div>
+            <div class="chart-container"><canvas id="servicePerformanceChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= AUTH MODAL ================= -->
+  <!-- Kept fully VISIBLE so it can be re-enabled by flipping FEATURES.authEnabled. -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal-content glass">
+      <button id="closeAuthModal" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+
+      <!-- Shown only while auth is disabled by the feature flag. -->
+      <div id="authComingSoon" class="hidden" style="background: rgba(245,158,11,0.12); border: 1px solid var(--color-warning); color: var(--color-warning); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px;">
+        <i class="fa-solid fa-circle-info"></i>
+        Online login &amp; registration are <strong>coming soon</strong> and not available yet.
+        You can still join the queue and use admin controls without an account.
+      </div>
+
+      <div class="modal-tabs">
+        <button id="loginTabBtn" class="tab-btn active">Login</button>
+        <button id="registerTabBtn" class="tab-btn">Register</button>
+      </div>
+
+      <form id="loginForm" class="modal-form active">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
+        </div>
+        <button type="submit" id="loginSubmitBtn" class="btn btn-accent btn-full btn-lg">Login</button>
+      </form>
+
+      <form id="registerForm" class="modal-form">
+        <div class="form-group">
+          <label for="regName">Full Name</label>
+          <input type="text" id="regName" class="form-input" placeholder="Jane Doe">
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="••••••••">
+        </div>
+        <button type="submit" id="registerSubmitBtn" class="btn btn-accent btn-full btn-lg">Create Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= TOASTS ================= -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ================= FIREBASE (compat SDK) ================= -->
+  <script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-database-compat.js"></script>
+
+  <!-- App scripts: config (feature flags) -> firebase init -> app logic -->
+  <script src="/js/config.js"></script>
+  <script src="/js/firebase-config.js"></script>
+  <script src="/js/app.js"></script>
 </body>
 </html>

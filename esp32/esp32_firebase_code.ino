@@ -96,6 +96,8 @@ unsigned long lastFirebaseSync = 0;
 #define FIREBASE_SYNC_MS  2500 // Poll every 2.5 seconds
 unsigned long lastHeartbeat = 0;
 #define HEARTBEAT_MS  6000     // 6 seconds heartbeat
+unsigned long lastWifiRetry = 0;
+#define WIFI_RETRY_MS  5000    // attempt reconnect at most every 5s (non-blocking)
 
 // =============================================================
 //  BUZZER CONTROL
@@ -265,6 +267,8 @@ void sendStateToFirebase() {
   serializeJson(doc, jsonStr);
 
   int httpCode = http.PATCH(jsonStr);
+  Serial.print("[Firebase] sendStateToFirebase HTTP code: ");
+  Serial.println(httpCode);   // 200 = ok, 401/403 = rules rejecting the write
   http.end();
 }
 
@@ -290,6 +294,12 @@ void updateTicketStatusInFirebase(int tokenVal, String status) {
   serializeJson(doc, jsonStr);
 
   int httpCode = http.PATCH(jsonStr);
+  Serial.print("[Firebase] updateTicketStatusInFirebase(");
+  Serial.print(tokenVal);
+  Serial.print(", ");
+  Serial.print(status);
+  Serial.print(") HTTP code: ");
+  Serial.println(httpCode);   // 200 = ok, 401/403 = rules rejecting the write
   http.end();
 }
 
@@ -365,7 +375,9 @@ void sendHeartbeat() {
 
   // Use Server Timestamp mapping
   String payload = "{\"last_updated\": {\".sv\": \"timestamp\"}}";
-  http.PATCH(payload);
+  int httpCode = http.PATCH(payload);
+  Serial.print("[Firebase] sendHeartbeat HTTP code: ");
+  Serial.println(httpCode);   // 200 = ok, 401/403 = rules rejecting the write
   http.end();
 }
 
@@ -429,6 +441,15 @@ void loop() {
   char key           = keypad.getKey();
   bool tellerPressed = isTellerPressed();
   unsigned long now  = millis();
+
+  // ---- Non-blocking WiFi auto-reconnect ----
+  // If the link drops, retry at most once every WIFI_RETRY_MS. Never block the
+  // loop with a while() so the keypad/servo/state machine keep running offline.
+  if (WiFi.status() != WL_CONNECTED && (now - lastWifiRetry >= WIFI_RETRY_MS)) {
+    lastWifiRetry = now;
+    Serial.println("[WiFi] Disconnected — attempting reconnect...");
+    WiFi.reconnect();
+  }
 
   // Handle continuous wrong token beeping every loop
   handleWrongBeep();
