@@ -382,6 +382,75 @@ void sendHeartbeat() {
 }
 
 // =============================================================
+//  WIFI DIAGNOSTICS + CONNECT
+//  (debugging helpers — queue logic untouched)
+// =============================================================
+const char* wifiStatusToText(wl_status_t s) {
+  switch (s) {
+    case WL_IDLE_STATUS:     return "IDLE";
+    case WL_NO_SSID_AVAIL:   return "NO_SSID_AVAIL (network not found / not 2.4GHz)";
+    case WL_SCAN_COMPLETED:  return "SCAN_COMPLETED";
+    case WL_CONNECTED:       return "CONNECTED";
+    case WL_CONNECT_FAILED:  return "CONNECT_FAILED (wrong password?)";
+    case WL_CONNECTION_LOST: return "CONNECTION_LOST";
+    case WL_DISCONNECTED:    return "DISCONNECTED";
+    default:                 return "UNKNOWN";
+  }
+}
+
+// Lists every 2.4GHz network the ESP32 can actually see. The ESP32 has NO 5GHz
+// radio, so if your iPhone hotspot is 5GHz-only it simply won't appear here.
+void scanNetworks() {
+  Serial.println("\n[WiFi] Scanning for 2.4GHz networks visible to the ESP32...");
+  int n = WiFi.scanNetworks();
+  if (n <= 0) {
+    Serial.println("[WiFi] No networks found. The ESP32 only sees 2.4GHz —");
+    Serial.println("       on iPhone enable Settings > Personal Hotspot > 'Maximize Compatibility'.");
+    return;
+  }
+  Serial.print("[WiFi] Found "); Serial.print(n); Serial.println(" network(s):");
+  bool targetSeen = false;
+  for (int i = 0; i < n; i++) {
+    Serial.print("  "); Serial.print(i + 1); Serial.print(": '");
+    Serial.print(WiFi.SSID(i));
+    Serial.print("'  (RSSI "); Serial.print(WiFi.RSSI(i));
+    Serial.print(" dBm, ch "); Serial.print(WiFi.channel(i)); Serial.println(")");
+    if (WiFi.SSID(i) == String(ssid)) targetSeen = true;
+  }
+  if (targetSeen) {
+    Serial.print("[WiFi] >>> Target SSID '"); Serial.print(ssid);
+    Serial.println("' IS visible. Good — proceeding to connect.");
+  } else {
+    Serial.print("[WiFi] >>> Target SSID '"); Serial.print(ssid);
+    Serial.println("' was NOT found. Check exact spelling (iPhone names use a curly apostrophe '),");
+    Serial.println("       and confirm the hotspot is ON + set to 2.4GHz.");
+  }
+  WiFi.scanDelete();
+}
+
+void connectWiFi() {
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);     // station mode only
+  WiFi.setSleep(false);    // keep the radio awake for reliable REST calls
+  WiFi.disconnect(true);
+  delay(100);
+
+  scanNetworks();          // shows whether the hotspot is even reachable
+
+  Serial.print("[WiFi] Connecting to '"); Serial.print(ssid); Serial.println("' ...");
+  WiFi.begin(ssid, password);
+
+  int retry = 0;
+  while (WiFi.status() != WL_CONNECTED && retry < 30) {   // up to ~30s
+    delay(1000);
+    Serial.print("  attempt "); Serial.print(retry + 1);
+    Serial.print("/30  status: ");
+    Serial.println(wifiStatusToText(WiFi.status()));
+    retry++;
+  }
+}
+
+// =============================================================
 //  SETUP
 // =============================================================
 void setup() {
@@ -407,27 +476,23 @@ void setup() {
 
   // ---- Connect to Wi-Fi ----
   lcdPrint("Connecting WiFi ", "SSID: iPhone    ");
-  WiFi.begin(ssid, password);
-  
-  int retry = 0;
-  while (WiFi.status() != WL_CONNECTED && retry < 15) {
-    delay(1000);
-    Serial.print(".");
-    retry++;
-  }
+  connectWiFi();
 
   if (WiFi.status() == WL_CONNECTED) {
     lcdPrint("WiFi Connected! ", "System Ready    ");
-    Serial.println("\nWiFi Connected!");
-    Serial.print("IP: "); Serial.println(WiFi.localIP());
+    Serial.println("\n[WiFi] CONNECTED!");
+    Serial.print("[WiFi] IP address: "); Serial.println(WiFi.localIP());
+    Serial.print("[WiFi] Signal (RSSI): "); Serial.print(WiFi.RSSI()); Serial.println(" dBm");
     delay(1500);
-    
+
     // Sync current values to firebase to clear states
     sendStateToFirebase();
     sendHeartbeat();
   } else {
     lcdPrint("WiFi Failed!    ", "Running Offline ");
-    Serial.println("\nWiFi connection failed. Running in offline fallback.");
+    Serial.print("\n[WiFi] FAILED to connect. Last status: ");
+    Serial.println(wifiStatusToText(WiFi.status()));
+    Serial.println("[WiFi] Running in offline fallback (queue still works locally).");
     delay(2000);
   }
 
