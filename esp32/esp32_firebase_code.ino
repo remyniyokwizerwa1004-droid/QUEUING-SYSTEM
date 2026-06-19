@@ -247,6 +247,8 @@ void sendStateToFirebase() {
   String url = String(firebaseHost) + "queue.json";
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
+  http.setConnectTimeout(1500);   // cap blocking so the keypad/loop never freezes on a slow call
+  http.setTimeout(2000);
 
   // Format system state as string
   String stateStr = "IDLE";
@@ -279,6 +281,8 @@ void updateTicketStatusInFirebase(int tokenVal, String status) {
   String url = String(firebaseHost) + "remote_tickets/" + String(tokenVal) + ".json";
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
+  http.setConnectTimeout(1500);   // cap blocking so the keypad/loop never freezes on a slow call
+  http.setTimeout(2000);
 
   StaticJsonDocument<150> doc;
   doc["status"] = status;
@@ -310,6 +314,8 @@ void handleFirebaseSync() {
   String url = String(firebaseHost) + "queue.json";
   http.begin(url);
   
+  http.setConnectTimeout(1500);   // cap blocking on the 2.5s poll
+  http.setTimeout(2000);
   int httpCode = http.GET();
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
@@ -357,6 +363,8 @@ void handleFirebaseSync() {
         HTTPClient resetBuzzerHttp;
         resetBuzzerHttp.begin(String(firebaseHost) + "queue.json");
         resetBuzzerHttp.addHeader("Content-Type", "application/json");
+        resetBuzzerHttp.setConnectTimeout(1500);
+        resetBuzzerHttp.setTimeout(2000);
         resetBuzzerHttp.PATCH("{\"trigger_buzzer\":false}");
         resetBuzzerHttp.end();
       }
@@ -372,6 +380,8 @@ void sendHeartbeat() {
   String url = String(firebaseHost) + "queue.json";
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
+  http.setConnectTimeout(1500);   // cap blocking so the keypad/loop never freezes on a slow call
+  http.setTimeout(2000);
 
   // Use Server Timestamp mapping
   String payload = "{\"last_updated\": {\".sv\": \"timestamp\"}}";
@@ -601,6 +611,8 @@ void loop() {
         HTTPClient http;
         http.begin(String(firebaseHost) + "remote_tickets/" + String(queueTokenCounter) + ".json");
         http.addHeader("Content-Type", "application/json");
+        http.setConnectTimeout(1500);
+        http.setTimeout(2000);
         http.PUT("{\"name\":\"Walk-in Priority\",\"service_type\":\"Reservation/Emergency\",\"join_time\":{\".sv\":\"timestamp\"},\"status\":\"enqueued\",\"source\":\"physical\"}");
         http.end();
         
