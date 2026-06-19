@@ -56,20 +56,27 @@ function setupNavigation() {
     const adminBoard = document.getElementById('adminBoard');
 
     viewToggleBtn.addEventListener('click', () => {
-        if (!currentUser) {
-            showToast("Please login or register to access the Admin Portal.", "warning");
-            document.getElementById('authModal').classList.add('active');
-            return;
-        }
+        // While auth is disabled, admin controls must work WITHOUT login.
+        // When FEATURES.authEnabled is flipped to true, the original login +
+        // role gating below is restored automatically.
+        const authEnabled = !!(window.FEATURES && window.FEATURES.authEnabled);
 
-        // Simplistic role check - for demo we allow any registered user or check admin
-        // If user is admin (you can add a flag in database, or we can check email matches remy)
-        const isAdmin = currentUser.email.toLowerCase().includes('admin') || 
-                        currentUser.email.toLowerCase().includes('remy');
+        if (authEnabled) {
+            if (!currentUser) {
+                showToast("Please login or register to access the Admin Portal.", "warning");
+                document.getElementById('authModal').classList.add('active');
+                return;
+            }
 
-        if (!isAdmin && !isAdminView) {
-            showToast("Access Restricted: User is not authorized as Admin.", "danger");
-            return;
+            // Simplistic role check - for demo we allow any registered user or check admin
+            // If user is admin (you can add a flag in database, or we can check email matches remy)
+            const isAdmin = currentUser.email.toLowerCase().includes('admin') ||
+                            currentUser.email.toLowerCase().includes('remy');
+
+            if (!isAdmin && !isAdminView) {
+                showToast("Access Restricted: User is not authorized as Admin.", "danger");
+                return;
+            }
         }
 
         isAdminView = !isAdminView;
@@ -101,8 +108,30 @@ function setupAuthentication() {
     const registerForm = document.getElementById('registerForm');
     const logoutBtn = document.getElementById('logoutBtn');
     const profileName = document.getElementById('profileName');
+    const authComingSoon = document.getElementById('authComingSoon');
+    const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+    const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+
+    // --- Feature flag: while auth is disabled, keep the UI visible but inert. ---
+    // Flip FEATURES.authEnabled to true (in js/config.js) to re-enable everything
+    // below without any further code changes.
+    const authEnabled = !!(window.FEATURES && window.FEATURES.authEnabled);
+    if (!authEnabled) {
+        if (authComingSoon) authComingSoon.classList.remove('hidden');
+        // Disable submit buttons + inputs so nothing can be submitted.
+        [loginSubmitBtn, registerSubmitBtn].forEach(btn => {
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
+        });
+        [loginForm, registerForm].forEach(form => {
+            if (form) form.querySelectorAll('input').forEach(i => { i.disabled = true; });
+        });
+    }
 
     loginRegisterBtn.addEventListener('click', () => {
+        if (!authEnabled) {
+            showToast("Login & registration are coming soon — not available yet.", "warning");
+        }
+        // Still open the modal so the (disabled) forms remain visible.
         authModal.classList.add('active');
     });
 
@@ -128,6 +157,10 @@ function setupAuthentication() {
     // Handle Login
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        if (!authEnabled) {
+            showToast("Login is coming soon — not available yet.", "warning");
+            return;
+        }
         const email = document.getElementById('loginEmail').value;
         const pass = document.getElementById('loginPassword').value;
 
@@ -145,6 +178,10 @@ function setupAuthentication() {
     // Handle Registration
     registerForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        if (!authEnabled) {
+            showToast("Registration is coming soon — not available yet.", "warning");
+            return;
+        }
         const name = document.getElementById('regName').value;
         const email = document.getElementById('regEmail').value;
         const pass = document.getElementById('regPassword').value;
@@ -214,26 +251,22 @@ function initializeRealTimeDatabase() {
         
         document.getElementById('totalQueueSize').textContent = data.queue_size || 0;
         document.getElementById('currentlyServing').textContent = formatToken(data.current_token);
-        
+        document.getElementById('nextServing').textContent = formatToken(data.next_token);
+        document.getElementById('systemState').textContent = data.system_state || 'IDLE';
+
+        // Gate status reflects the device's REPORTED state (gate_open). The ESP both
+        // writes and reads this node, so the dashboard mirrors the device and only
+        // overrides it on an explicit admin "Toggle Gate" action.
+        document.getElementById('gateStatus').textContent = data.gate_open ? 'OPEN' : 'CLOSED';
+
         // Dynamic wait time: remaining waiting size * avg duration
         const expectedWaitSec = (data.queue_size || 0) * avgServiceTimeSec;
         document.getElementById('expectedWaitTime').textContent = formatDuration(expectedWaitSec);
         document.getElementById('avgServiceTime').textContent = formatDuration(avgServiceTimeSec);
         document.getElementById('manualAvgTime').value = avgServiceTimeSec;
 
-        // ESP32 Heartbeat status
-        const lastUpdated = data.last_updated || 0;
-        const timeDiff = Date.now() - lastUpdated;
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-
-        if (timeDiff < 15000) { // updated within 15 seconds
-            statusDot.className = 'status-dot online';
-            statusText.textContent = 'ESP32: Connected';
-        } else {
-            statusDot.className = 'status-dot offline';
-            statusText.textContent = 'ESP32: Offline';
-        }
+        // ESP32 Heartbeat / "last updated" status (also ticked live by an interval below).
+        refreshHeartbeatStatus();
 
         // Refresh client specific ticket status
         updateClientTicketStatus();
@@ -289,6 +322,40 @@ function initializeRealTimeDatabase() {
         updateClientTicketStatus();
         updateCharts();
     });
+
+    // Tick the "last updated X seconds ago" + OFFLINE badge once a second so the
+    // indicator stays accurate even when no new snapshot has arrived. The device
+    // heartbeats every ~6s; we flag OFFLINE after ~15s of silence.
+    setInterval(refreshHeartbeatStatus, 1000);
+}
+
+// Derives the connection badge + age label from /queue/last_updated. Kept separate
+// so both the RTDB snapshot and the 1s ticker can call it.
+function refreshHeartbeatStatus() {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const lastUpdatedText = document.getElementById('lastUpdatedText');
+    if (!statusDot || !statusText) return;
+
+    const lastUpdated = currentQueueData.last_updated || 0;
+    const ageMs = Date.now() - lastUpdated;
+
+    if (lastUpdated && ageMs < 15000) { // heartbeat within ~15s -> online
+        statusDot.className = 'status-dot online';
+        statusText.textContent = 'ESP32: Connected';
+    } else {
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = 'ESP32: OFFLINE';
+    }
+
+    if (lastUpdatedText) {
+        if (!lastUpdated) {
+            lastUpdatedText.textContent = '— never updated';
+        } else {
+            const ageSec = Math.max(0, Math.floor(ageMs / 1000));
+            lastUpdatedText.textContent = `updated ${ageSec}s ago`;
+        }
+    }
 }
 
 // --- Join Queue actions ---
@@ -320,10 +387,13 @@ function setupQueueActions() {
             } else if (committed) {
                 const newTokenId = snapshot.val();
                 
+                // status:"enqueued" matches the ESP remote-ticket contract. The device
+                // detects this new web ticket by seeing last_token_issued (just bumped by
+                // the transaction above) exceed its own counter, then picks it up.
                 const ticketData = {
                     name: name,
                     service_type: serviceType,
-                    status: 'pending',
+                    status: 'enqueued',
                     source: 'web',
                     join_time: firebase.database.ServerValue.TIMESTAMP
                 };

@@ -1,6 +1,18 @@
 {
+  // =====================================================================
+  //  ⚠️  INSECURE — TESTING ONLY  ⚠️
+  //  These rules allow ANYONE on the internet to read and write your
+  //  entire Realtime Database without authentication. This is only here
+  //  so the ESP32 device and the (auth-disabled) web dashboard can be
+  //  wired up and tested end-to-end.
+  //
+  //  LOCK THIS DOWN before any real / production use:
+  //    - require auth (".read"/".write": "auth != null"), and/or
+  //    - scope rules per path (e.g. /queue, /remote_tickets) with validation.
+  //  When FEATURES.authEnabled is turned on in the web app, tighten these.
+  // =====================================================================
   "rules": {
-    ".read": "true",
-    ".write": "true"
+    ".read": true,
+    ".write": true
   }
 }

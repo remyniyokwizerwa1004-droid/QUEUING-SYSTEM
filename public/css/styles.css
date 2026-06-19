@@ -611,6 +611,8 @@ select.form-input {
 }
 
 .status-badge.waiting { background: rgba(59, 130, 246, 0.15); color: var(--color-info); }
+.status-badge.enqueued { background: rgba(59, 130, 246, 0.15); color: var(--color-info); }
+.status-badge.pending { background: rgba(59, 130, 246, 0.15); color: var(--color-info); }
 .status-badge.serving { background: rgba(255, 204, 0, 0.15); color: var(--mtn-yellow); animation: pulse 2s infinite; }
 .status-badge.completed { background: rgba(16, 185, 129, 0.15); color: var(--color-success); }
 .status-badge.cancelled { background: rgba(239, 68, 68, 0.15); color: var(--color-danger); }
