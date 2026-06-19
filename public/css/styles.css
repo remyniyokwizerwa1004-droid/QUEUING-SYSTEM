@@ -116,6 +116,14 @@ body {
     box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
 }
 
+.logo-img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+}
+
 .logo-text h1 {
     font-size: 20px;
     font-weight: 600;
